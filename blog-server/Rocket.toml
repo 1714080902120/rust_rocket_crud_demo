@@ -1,0 +1,2 @@
+[global.databases]
+blog = { url = "postgresql://postgres:dan666@101.43.244.226:5432/blog" }

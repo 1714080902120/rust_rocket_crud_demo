@@ -1,0 +1,17 @@
+[package]
+name = "blog-server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rocket = { version = "=0.5.0-rc.3", features = ["json"]  }
+serde = { version = "1.0", features = ["derive"] }
+
+
+
+#指定连接的数据库
+[dependencies.rocket_db_pools]
+version = "=0.1.0-rc.3"
+features = ["sqlx_postgres"]
