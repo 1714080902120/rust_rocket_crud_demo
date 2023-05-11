@@ -1,37 +1,64 @@
 
+use jsonwebtoken::{decode, DecodingKey, Validation};
+use rocket::{request::{FromRequest, Outcome}, http::Status, futures::stream::Forward};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-pub struct User {
-    pub id: i32,
-    pub name: String,
-    pub desc: String,
-    pub reg_time: i32,
-    pub email: String,
-    pub phone: i32,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Article {
-    pub id: usize,
+    pub id: i32,
     pub title: String,
     pub content: String,
+    pub author_id: i32,
     pub author_name: String,
     pub author_desc: String,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-pub struct RtData<T> {
-    pub success: bool,
-    pub msg: String,
-    pub data: T,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct FailureData(pub ());
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-pub struct AllArticleData(Article);
+pub struct AllArticleData(pub Vec<Article>);
 
-pub type SucAllArticle = RtData<AllArticleData>;
-pub type FailureAllArticle = RtData<FailureData>;
+pub struct UserId {
+    pub id: i32
+}
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
+pub struct UserToken {
+    pub id: i32,
+    pub expire_time: i64
+}
+
+const KEY: &'static str = "dan";
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for UserId {
+    type Error = Status;
+    async fn from_request(request: &'r rocket::Request<'_>) ->  Outcome<Self, Self::Error> {
+        let header = request.headers();
+        if let Some(token) = header.get("token").next() {
+            let token_msg = decode::<UserToken>(token, &DecodingKey::from_secret(&KEY.as_ref()), &Validation::new(jsonwebtoken::Algorithm::ES256));
+            match token_msg {
+                Ok(token_data) => {
+                    if let Some(id) = request.query_value("id") {
+                        match id {
+                            Ok(user_id) => {
+                                
+                            }
+                            Err(err) => {
+
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    
+                    Outcome::Failure(Status::Unauthorized)
+                }
+            }
+        }
+        Outcome::Success(Self {
+            id: request.g
+        })
+
+    }
+}
