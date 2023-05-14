@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate rocket;
+use jsonwebtoken::get_current_timestamp;
 use rocket_db_pools::{
     sqlx::{self, postgres::PgRow, Row},
     Connection, Database,
@@ -7,13 +8,15 @@ use rocket_db_pools::{
 
 use rocket::{
     http::Status,
-    serde::json::{self, serde_json::json, Value},
+    serde::json::{serde_json::json, Value},
 };
 
+mod auth;
 mod data_types;
 mod db_service;
 use data_types::{AllArticleData, Article, FailureData};
-use db_service::{get_article};
+use db_service::get_article;
+use auth::UserToken;
 
 #[derive(Database)]
 #[database("blog")]
@@ -21,9 +24,14 @@ struct Blog(sqlx::PgPool);
 
 /// get article
 #[get("/get_article?<all>&<id>&<user_id>")]
-async fn index(mut db: Connection<Blog>, all: bool, id: &str, user_id: &str) -> Result<Value, Status> {
+async fn index(
+    mut db: Connection<Blog>,
+    all: bool,
+    id: &str,
+    user_id: &str,
+) -> Result<Value, Status> {
     let sql: String = get_article(all, id, user_id);
-    
+
     let result: Result<Vec<PgRow>, sqlx::Error> = sqlx::query(&sql).fetch_all(&mut *db).await;
 
     match result {
@@ -68,6 +76,7 @@ fn error_catcher() -> Option<Value> {
 fn rocket() -> _ {
     rocket::build()
         .attach(Blog::init())
+        .attach(UserToken { id: -1, expire_time: get_current_timestamp() })
         .register("/", catchers![error_catcher])
         .mount("/", routes![index])
 }
