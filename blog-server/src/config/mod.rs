@@ -10,6 +10,9 @@ use serde::{Deserialize, Serialize};
 pub struct MyConfig {
     pub email_reg_rule: String,
     pub phone_reg_rule: String,
+    pub token_field: String,
+    pub token_key: String,
+    pub expire_time: u64,
 }
 
 impl Default for MyConfig {
@@ -20,6 +23,9 @@ impl Default for MyConfig {
                     .to_string(),
             phone_reg_rule: r"/^1(3\d|4[5-9]|5[0-35-9]|6[567]|7[0-8]|8\d|9[0-35-9])\d{8}$/"
                 .to_string(),
+                token_field: String::from("_token"),
+                token_key: String::from("dan"),
+                expire_time: 24 * 60 * 60 * 1000  // one day
         }
     }
 }

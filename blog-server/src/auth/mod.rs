@@ -1,4 +1,5 @@
 mod db_service;
+pub mod token;
 mod fairing;
 pub mod route;
 

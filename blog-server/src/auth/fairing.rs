@@ -6,11 +6,12 @@ use rocket::{
 };
 use std::{cmp::Ordering, io::Cursor};
 
-use crate::types::{RtData, FailureData};
+use crate::{types::{RtData, FailureData}, config::MyConfig};
 use crate::auth::{ UserToken, AuthMsg};
 
+use super::token::decode_token;
 
-const KEY: &str = "dan";
+
 
 const EXCEPT_LIST: [Status; 2] = [Status::NotFound, Status::InternalServerError];
 
@@ -24,16 +25,18 @@ impl Fairing for UserToken {
     }
 
     async fn on_request(&self, request: &mut Request<'_>, _: &mut Data<'_>) {
+        
+        let my_config = request.rocket().state::<MyConfig>().expect("get global custom config error in fairing");
+        let token_field = my_config.token_field.as_str();
+        let token_key = my_config.token_key.as_str();
+
         let header = request.headers();
-        let token_data = header.get("_token").next();
+        let token_data = header.get(token_field).next();
+
 
         let token = match token_data {
             Some(token) => {
-                match decode::<UserToken>(
-                    token,
-                    &DecodingKey::from_secret(KEY.as_ref()),
-                    &Validation::new(jsonwebtoken::Algorithm::ES256),
-                ) {
+                match decode_token(token, token_key) {
                     Ok(user_token) => user_token,
                     Err(err) => {
                         request.local_cache(|| AuthMsg {
