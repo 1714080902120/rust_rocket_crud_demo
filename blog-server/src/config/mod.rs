@@ -1,12 +1,35 @@
-use rocket::{Config, figment::{Figment, providers::{Toml, Format}}};
+use rocket::{
+    figment::{
+        providers::{Format, Serialized, Toml},
+        Figment,
+    },
+    Config, fairing::AdHoc,
+};
+use serde::{Deserialize, Serialize};
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub struct MyConfig {
+    pub email_reg_rule: String,
+    pub phone_reg_rule: String,
+}
+
+impl Default for MyConfig {
+    fn default() -> Self {
+        Self {
+            email_reg_rule:
+                r"^[a-z0-9A-Z]+[- | a-z0-9A-Z . _]+@([a-z0-9A-Z]+(-[a-z0-9A-Z]+)?\\.)+[a-z]{2,}$"
+                    .to_string(),
+            phone_reg_rule: r"/^1(3\d|4[5-9]|5[0-35-9]|6[567]|7[0-8]|8\d|9[0-35-9])\d{8}$/"
+                .to_string(),
+        }
+    }
+}
 
 pub fn get_custom_figment() -> Figment {
-    let email_reg_rule =
-        r"^[a-z0-9A-Z]+[- | a-z0-9A-Z . _]+@([a-z0-9A-Z]+(-[a-z0-9A-Z]+)?\\.)+[a-z]{2,}$";
-    let phone_reg_rule = r"/^1(3\d|4[5-9]|5[0-35-9]|6[567]|7[0-8]|8\d|9[0-35-9])\d{8}$/";
-
-    Config::figment()
+    Figment::from(Config::default())
         .merge(Toml::file("Rocket.toml").nested())
-        .merge(("email_reg_rule", email_reg_rule))
-        .merge(("phone_reg_rule", phone_reg_rule))
+        .merge(Serialized::defaults(MyConfig::default()))
+}
+
+pub fn init_my_config () -> AdHoc {
+    AdHoc::config::<MyConfig>()
 }

@@ -19,6 +19,7 @@ pub struct FailureData(pub ());
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct ArticleData(pub Vec<Article>);
 
+
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct RtData<T> {
     pub success: bool,
@@ -43,3 +44,9 @@ impl<'r, T: Serialize> Responder<'r, 'static> for RtData<T> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub struct LoginSuccess {
+    name: String,
+    desc: String,
+    id: i32,
+}

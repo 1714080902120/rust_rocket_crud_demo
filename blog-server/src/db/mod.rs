@@ -1,7 +1,7 @@
 use rocket_db_pools::{
     sqlx::{PgPool},
     Database,
-    Initializer
+    Initializer, Connection
 };
 
 #[derive(Database)]
@@ -11,3 +11,5 @@ pub struct Blog(PgPool);
 pub fn init_db_blog() -> Initializer<Blog> {
     Blog::init()
 }
+
+pub type BlogDBC = Connection<Blog>;

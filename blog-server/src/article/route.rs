@@ -1,13 +1,12 @@
 use rocket_db_pools::{
-    sqlx::{Row},
-    Connection,
+    sqlx::{Row}
 };
 
 
 use rocket::{get, http::Status, response::Redirect, uri};
 
 
-use crate::db::Blog;
+use crate::db::{ BlogDBC };
 use crate::types::{Article, ArticleData, RtData};
 use crate::article::db_service::get_article;
 
@@ -19,7 +18,7 @@ pub fn index() {
 /// get article
 #[get("/get_article?<all>&<id>&<author_id>")]
 pub async fn route_article(
-    db: Connection<Blog>,
+    db: BlogDBC,
     all: bool,
     id: &str,
     author_id: &str,
