@@ -1,5 +1,6 @@
 use rocket::http::Status;
 use rocket::{post};
+use rocket::form::Form;
 use rocket_db_pools::sqlx::Row;
 
 use crate::auth::{db_service::get_user_msg, LoginData};

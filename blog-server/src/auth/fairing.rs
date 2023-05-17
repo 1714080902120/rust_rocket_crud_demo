@@ -1,4 +1,4 @@
-use jsonwebtoken::{decode, get_current_timestamp, DecodingKey, Validation};
+use jsonwebtoken::{get_current_timestamp};
 use rocket::{
     fairing::{Fairing, Info, Kind},
     http::{ContentType, Status},
