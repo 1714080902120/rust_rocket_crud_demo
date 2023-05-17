@@ -13,7 +13,7 @@ use super::token::decode_token;
 
 
 
-const EXCEPT_LIST: [Status; 2] = [Status::NotFound, Status::InternalServerError];
+const EXCEPT_LIST: [Status; 3] = [Status::NotFound, Status::InternalServerError, Status::BadRequest];
 
 #[rocket::async_trait]
 impl Fairing for UserToken {
