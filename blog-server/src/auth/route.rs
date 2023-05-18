@@ -7,7 +7,7 @@ use crate::config::MyConfig;
 use crate::db::BlogDBC;
 use crate::types::{LoginSuccessData, RtData};
 
-use super::db_service::search_user_by_email_and_phone;
+use super::db_service::{try_register_user};
 use super::validate::{validate_login_data, validate_register_data, ValidateData};
 use super::{RtDataType, RegisterData, UserExisted};
 
@@ -57,24 +57,29 @@ pub async fn login(
 
 #[post("/register", data = "<register_data>")]
 pub async fn register(
-    mut db: BlogDBC,
+    db: BlogDBC,
     my_config: &State<MyConfig>,
     validator: &State<ValidateData>,
     register_data: Form<RegisterData>,
 ) -> Result<RtData<RtDataType>, Status> {
 
-    validate_register_data(register_data.into_inner().into(), &validator)?;
+    validate_register_data(register_data.clone().into(), &validator)?;
 
-    if let Err(db_err) = search_user_by_email_and_phone(&register_data.email, &register_data.phone, db).await {
-        
-    } else {
-        return Ok(RtData {
-            success: false,
-            rt: -33,
-            msg: String::from("phone or email had been registered !"),
-            data: RtDataType::Exist(UserExisted(()))
-        });
-    }
+    let res = try_register_user(db, register_data.into_inner()).await;
 
-    Ok(RtData { success: true, rt: (), data: (), msg: String::from() })
+    match res {
+        Ok(s) => {
+            dbg!(s);
+        }
+        Err(err) => {
+            dbg!(err);
+        }
+    };
+
+    Ok(RtData {
+        success: false,
+        rt: -33,
+        msg: String::from("phone or email had been registered !"),
+        data: RtDataType::Exist(UserExisted(()))
+    })
 }

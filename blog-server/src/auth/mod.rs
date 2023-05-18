@@ -5,16 +5,19 @@ mod fairing;
 pub mod route;
 
 use std::io::Cursor;
+use jsonwebtoken::get_current_timestamp;
 use rocket::{
     http::{ContentType},
     Request,
-    response::{self, Responder, Response}, FromForm,
+    response::{self, Responder, Response, Redirect}, FromForm,
+    uri,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::{config::MyConfig, types::{RtData, LoginSuccessData}};
 
-use self::token::encode_token;
+use self::{token::encode_token};
+use crate::auth::route::login;
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub struct UserToken {
@@ -67,7 +70,7 @@ impl<'r> Responder<'r, 'static> for RtData<LoginSuccessData> {
         let my_config = req.rocket().state::<MyConfig>().expect("get global state error when response in login");
         let token_field = my_config.token_field.as_str();
         let token_key = my_config.token_key.as_str();
-        let expire_time = my_config.expire_time;
+        let expire_time = my_config.expire_time + get_current_timestamp();
 
         let user_id = self.data.user_id;
 
@@ -94,4 +97,24 @@ pub struct UserExisted(());
 pub enum RtDataType {
     Exist(UserExisted),
     Success(LoginSuccessData)
+}
+
+
+impl<'r> Responder<'r, 'static> for RtData<RtDataType> {
+    fn respond_to(self, req: &'r Request<'_>) -> response::Result<'static> {
+        match self.data {
+            RtDataType::Exist(_) => {
+                let data = self.to_string();
+                Response::build().header(ContentType::JSON)
+                .sized_body(data.len(), Cursor::new(data)).ok()
+            },
+            RtDataType::Success(_) => {
+                Redirect::to(uri!(crate::auth::route::login()));
+
+                let data = self.to_string();
+                Response::build().header(ContentType::JSON)
+                .sized_body(data.len(), Cursor::new(data)).ok()
+            }
+        }
+    }
 }

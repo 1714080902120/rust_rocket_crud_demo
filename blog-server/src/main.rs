@@ -10,7 +10,7 @@ mod state;
 mod types;
 
 use article::route::{index, route_article};
-use auth::route::login;
+use auth::route::{login, register};
 use catcher::{bad_request_catcher, error_catcher, not_found_catcher};
 use config::{get_custom_figment, init_my_config};
 use db::init_db_blog;
@@ -23,11 +23,11 @@ fn rocket() -> _ {
         .attach(init_db_blog())
         .attach(get_default_user_token())
         .manage(init_app_state())
-        .manage(init_validate_instace())
+        .manage(init_validate_instace().unwrap())
         .register(
             "/",
             catchers![error_catcher, not_found_catcher, bad_request_catcher],
         )
         .mount("/", routes![index, route_article])
-        .mount("/user", routes![login])
+        .mount("/user", routes![login, register])
 }
