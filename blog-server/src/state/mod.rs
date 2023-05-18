@@ -1,5 +1,6 @@
-use crate::auth::UserToken;
+use crate::auth::{UserToken, validate::ValidateData};
 use jsonwebtoken::get_current_timestamp;
+use rocket::http::Status;
 use serde::{Deserialize, Serialize};
 
 pub fn get_default_user_token() -> UserToken {
@@ -10,9 +11,16 @@ pub fn get_default_user_token() -> UserToken {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
-pub struct AppState {}
+pub struct AppState {
+
+}
 
 pub fn init_app_state() -> AppState {
     
     AppState {}
+}
+
+pub fn init_validate_instace () -> Result<ValidateData, Status> {
+    let instance = ValidateData::new()?;
+    Ok(instance)
 }

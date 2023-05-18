@@ -18,4 +18,9 @@ pub async fn get_user_msg((login_key, pwd, is_email): (String, String, bool), mu
     sqlx::query(&sql).fetch_one(&mut *db).await
 }
 
-pub async fn register_user () {}
+pub async fn search_user_by_email_and_phone (email: &str, phone: &str, mut db: BlogDBC) -> Result<PgRow, rocket_db_pools::sqlx::Error> {
+    let sql = format!("SELECT * FROM public.user WHERE email = '{email}' AND phone = {phone} LIMIT 1");
+
+    sqlx::query(&sql).fetch_one(&mut *db).await
+
+}

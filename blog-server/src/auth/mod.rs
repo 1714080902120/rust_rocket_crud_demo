@@ -1,6 +1,5 @@
 mod db_service;
-mod validate;
-pub use validate::validate;
+pub mod validate;
 pub mod token;
 mod fairing;
 pub mod route;
@@ -40,6 +39,27 @@ impl Into<(String, String)> for LoginData {
         (self.user_login_key, self.pwd)
     }
 }
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize, FromForm)]
+pub struct RegisterData {
+    #[field(name = "name")]
+    name: String,
+    #[field(name = "pwd")]
+    pwd: String,
+    #[field(name = "email")]
+    email: String,
+    #[field(name = "phone")]
+    phone: String,
+    #[field(name = "desc")]
+    desc: String,
+}
+
+impl Into<(String, String, String, String, String)> for RegisterData {
+    fn into(self) -> (String, String, String, String, String) {
+        (self.name, self.pwd, self.email, self.phone, self.desc)
+    }
+}
+
+
 
 
 impl<'r> Responder<'r, 'static> for RtData<LoginSuccessData> {
@@ -64,4 +84,14 @@ impl<'r> Responder<'r, 'static> for RtData<LoginSuccessData> {
         .raw_header(token_field.to_string(), token)
         .sized_body(data.len(), Cursor::new(data)).ok()
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+pub struct UserExisted(());
+
+
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub enum RtDataType {
+    Exist(UserExisted),
+    Success(LoginSuccessData)
 }
