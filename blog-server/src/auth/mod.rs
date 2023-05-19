@@ -19,12 +19,13 @@ use crate::{config::MyConfig, types::{RtData, LoginSuccessData}};
 use self::{token::encode_token};
 use crate::auth::route::login;
 
-#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct UserToken {
-    pub id: i32,
+    pub id: String,
     pub expire_time: u64,
 }
 
+#[derive(Debug)]
 pub struct AuthMsg {
     pub is_valid_token: bool,
 }
@@ -72,12 +73,12 @@ impl<'r> Responder<'r, 'static> for RtData<LoginSuccessData> {
         let token_key = my_config.token_key.as_str();
         let expire_time = my_config.expire_time + get_current_timestamp();
 
-        let user_id = self.data.user_id;
+        let user_id = self.data.user_id.as_str().to_owned();
 
 
         let data = self.to_string();
 
-        let token = encode_token(user_id, expire_time, token_key);
+        let token = encode_token(user_id.to_string(), expire_time, token_key);
         
         req.local_cache(|| AuthMsg {
             is_valid_token: true

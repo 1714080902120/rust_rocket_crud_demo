@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 pub fn get_default_user_token() -> UserToken {
     UserToken {
-        id: -1,
+        id: uuid::Uuid::new_v4().to_string(),
         expire_time: get_current_timestamp(),
     }
 }

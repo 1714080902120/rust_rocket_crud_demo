@@ -4,10 +4,10 @@ use rocket::{http::ContentType, response::Responder, Request, Response, response
 use serde::{Deserialize, Serialize};
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Article {
-    pub id: i32,
+    pub id: String,
     pub title: String,
     pub content: String,
-    pub author_id: i32,
+    pub author_id: String,
     pub author_name: String,
     pub author_desc: String,
 }
@@ -22,7 +22,7 @@ pub struct ArticleData(pub Vec<Article>);
 pub struct LoginSuccessData {
     pub name: String,
     pub desc: String,
-    pub user_id: i32,
+    pub user_id: String,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]

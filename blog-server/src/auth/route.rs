@@ -1,15 +1,16 @@
 use rocket::http::Status;
-use rocket::{form::Form, post, State};
+use rocket::{form::Form, post, response::Redirect, uri, State};
 use rocket_db_pools::sqlx::Row;
+use uuid::{Uuid, Bytes};
 
 use crate::auth::{db_service::get_user_msg, LoginData};
 use crate::config::MyConfig;
 use crate::db::BlogDBC;
 use crate::types::{LoginSuccessData, RtData};
 
-use super::db_service::{try_register_user};
+use super::db_service::try_register_user;
 use super::validate::{validate_login_data, validate_register_data, ValidateData};
-use super::{RtDataType, RegisterData, UserExisted};
+use super::{RegisterData, RtDataType, UserExisted};
 
 #[post("/login", data = "<login_data>")]
 pub async fn login(
@@ -26,15 +27,17 @@ pub async fn login(
     let result = get_user_msg((user_login_key, pwd, is_email), db).await;
 
     let user_msg = match result {
-        Ok(row) => LoginSuccessData {
-            name: row.get(0),
-            desc: row.get(1),
-            user_id: row.get(2),
+        Ok(row) => {
+            let user_id = row.get::<sqlx::types::Uuid, usize>(2).to_string();
+            LoginSuccessData {
+                name: row.get(0),
+                desc: row.get(1),
+                user_id,
+            }
         },
         Err(err) => {
             match err {
                 rocket_db_pools::sqlx::Error::RowNotFound => {
-                    // TODO 这里应该调到注册路由
                     dbg!("row not found");
                     return Err(Status::BadRequest);
                 }
@@ -62,7 +65,6 @@ pub async fn register(
     validator: &State<ValidateData>,
     register_data: Form<RegisterData>,
 ) -> Result<RtData<RtDataType>, Status> {
-
     validate_register_data(register_data.clone().into(), &validator)?;
 
     let res = try_register_user(db, register_data.into_inner()).await;
@@ -76,10 +78,12 @@ pub async fn register(
         }
     };
 
+    Redirect::to(uri!(crate::auth::route::login()));
+
     Ok(RtData {
         success: false,
         rt: -33,
         msg: String::from("phone or email had been registered !"),
-        data: RtDataType::Exist(UserExisted(()))
+        data: RtDataType::Exist(UserExisted(())),
     })
 }

@@ -28,7 +28,7 @@ pub async fn try_register_user (mut db: BlogDBC, register_data: RegisterData) ->
     let email_c = email.as_str();
     let phone_c = phone.as_str();
 
-    let sql = format!("SELECT * FROM public.user WHERE email = '{email_c}' AND phone = {phone_c} LIMIT 1");
+    let sql = format!("SELECT * FROM public.user WHERE email = '{email_c}' OR phone = {phone_c} LIMIT 1");
 
     let res = if let Err(db_err) = sqlx::query(&sql).fetch_one(&mut *db).await {
         

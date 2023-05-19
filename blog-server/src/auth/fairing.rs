@@ -32,36 +32,27 @@ impl Fairing for UserToken {
 
         let header = request.headers();
         let token_data = header.get(token_field).next();
-
-
+        
+        dbg!(token_data);
         let token = match token_data {
             Some(token) => {
                 match decode_token(token, token_key) {
                     Ok(user_token) => user_token,
                     Err(err) => {
-                        request.local_cache(|| AuthMsg {
-                            is_valid_token: false,
-                        });
                         dbg!(err);
                         return;
                     }
                 }
             }
             None => {
-                request.local_cache(|| AuthMsg {
-                    is_valid_token: false,
-                });
+                dbg!("has none token");
                 return;
             }
         };
         // validate time
         let expire_time: u64 = token.claims.expire_time;
         match get_current_timestamp().cmp(&expire_time) {
-            Ordering::Less => {
-                request.local_cache(|| AuthMsg {
-                    is_valid_token: false,
-                });
-            }
+            Ordering::Less => {}
             _ => {
                 request.local_cache(|| AuthMsg {
                     is_valid_token: true,
@@ -74,6 +65,9 @@ impl Fairing for UserToken {
         let auth_state = req.local_cache(|| AuthMsg {
             is_valid_token: false,
         });
+
+
+        dbg!(auth_state);
 
         if !auth_state.is_valid_token && !EXCEPT_LIST.contains(&res.status()) {
             res.set_status(Status::NonAuthoritativeInformation);
