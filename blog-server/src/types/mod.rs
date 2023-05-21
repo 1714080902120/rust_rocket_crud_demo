@@ -2,12 +2,12 @@ use std::io::Cursor;
 
 use rocket::{http::ContentType, response::Responder, Request, Response, response};
 use serde::{Deserialize, Serialize};
+
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Article {
     pub id: String,
     pub title: String,
     pub content: String,
-    pub author_id: String,
     pub author_name: String,
     pub author_desc: String,
 }
@@ -16,7 +16,9 @@ pub struct Article {
 pub struct FailureData(pub ());
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-pub struct ArticleData(pub Vec<Article>);
+pub struct ArticleData {
+    pub list: Vec<Article>,
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct LoginSuccessData {
@@ -41,17 +43,6 @@ impl<T: Serialize> RtData<T> {
 
 
 impl<'r> Responder<'r, 'static> for RtData<FailureData> {
-    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
-            
-        let data = self.to_string();
-
-        Response::build()
-            .header(ContentType::JSON)
-            .sized_body(data.len(), Cursor::new(data)).ok()
-    }
-}
-
-impl<'r> Responder<'r, 'static> for RtData<ArticleData> {
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
             
         let data = self.to_string();

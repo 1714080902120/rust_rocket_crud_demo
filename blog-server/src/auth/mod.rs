@@ -1,28 +1,26 @@
 mod db_service;
-pub mod validate;
-pub mod token;
 mod fairing;
 pub mod route;
+pub mod token;
+pub mod validate;
 
-use std::io::Cursor;
-use jsonwebtoken::get_current_timestamp;
+use crate::auth::token::set_token;
 use rocket::{
-    http::{ContentType},
-    Request,
-    response::{self, Responder, Response, Redirect}, FromForm,
-    uri,
+    http::ContentType,
+    response::{self, Responder, Response},
+    FromForm, Request,
 };
 use serde::{Deserialize, Serialize};
+use std::io::Cursor;
 
-use crate::{config::MyConfig, types::{RtData, LoginSuccessData}};
-
-use self::{token::encode_token};
-use crate::auth::route::login;
+use crate::{
+    types::{LoginSuccessData, RtData},
+};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct UserToken {
     pub id: String,
-    pub expire_time: u64,
+    pub exp: u64,
 }
 
 #[derive(Debug)]
@@ -63,59 +61,58 @@ impl Into<(String, String, String, String, String)> for RegisterData {
     }
 }
 
-
-
+impl RtData<LoginSuccessData> {
+    fn hide_user_id (&mut self) {
+        self.data.user_id = String::from("-");
+    }
+}
 
 impl<'r> Responder<'r, 'static> for RtData<LoginSuccessData> {
-    fn respond_to(self, req: &'r Request<'_>) -> response::Result<'static> {
-        let my_config = req.rocket().state::<MyConfig>().expect("get global state error when response in login");
-        let token_field = my_config.token_field.as_str();
-        let token_key = my_config.token_key.as_str();
-        let expire_time = my_config.expire_time + get_current_timestamp();
+    fn respond_to(mut self, req: &'r Request<'_>) -> response::Result<'static> {
 
         let user_id = self.data.user_id.as_str().to_owned();
 
+        self.hide_user_id();
 
         let data = self.to_string();
 
-        let token = encode_token(user_id.to_string(), expire_time, token_key);
-        
         req.local_cache(|| AuthMsg {
-            is_valid_token: true
+            is_valid_token: true,
         });
-        
-        Response::build().header(ContentType::JSON)
-        .raw_header(token_field.to_string(), token)
-        .sized_body(data.len(), Cursor::new(data)).ok()
+
+        let (token_field, token) = set_token(req, user_id.as_str());
+
+        Response::build()
+            .header(ContentType::JSON)
+            .raw_header(token_field.to_string(), token)
+            .sized_body(data.len(), Cursor::new(data))
+            .ok()
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct UserExisted(());
 
-
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum RtDataType {
     Exist(UserExisted),
-    Success(LoginSuccessData)
+    Success(LoginSuccessData),
 }
-
 
 impl<'r> Responder<'r, 'static> for RtData<RtDataType> {
     fn respond_to(self, req: &'r Request<'_>) -> response::Result<'static> {
-        match self.data {
-            RtDataType::Exist(_) => {
-                let data = self.to_string();
-                Response::build().header(ContentType::JSON)
-                .sized_body(data.len(), Cursor::new(data)).ok()
-            },
-            RtDataType::Success(_) => {
-                Redirect::to(uri!(crate::auth::route::login()));
+        let mut res = Response::build();
+        res.header(ContentType::JSON);
 
-                let data = self.to_string();
-                Response::build().header(ContentType::JSON)
-                .sized_body(data.len(), Cursor::new(data)).ok()
-            }
-        }
+        req.local_cache(|| AuthMsg {
+            is_valid_token: true,
+        });
+
+        if let RtDataType::Success(login_data) = &self.data {
+            let (token_field, token) = set_token(req, login_data.user_id.as_str());
+            res.raw_header(token_field, token);
+        };
+        let data = self.to_string();
+        res.sized_body(data.len(), Cursor::new(data)).ok()
     }
 }

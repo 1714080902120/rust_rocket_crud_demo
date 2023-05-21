@@ -1,10 +1,8 @@
 use rocket::http::Status;
-use rocket::{form::Form, post, response::Redirect, uri, State};
+use rocket::{form::Form, post, State};
 use rocket_db_pools::sqlx::Row;
-use uuid::{Uuid, Bytes};
 
-use crate::auth::{db_service::get_user_msg, LoginData};
-use crate::config::MyConfig;
+use crate::auth::{db_service::{RegisterRtType, get_user_msg}, LoginData};
 use crate::db::BlogDBC;
 use crate::types::{LoginSuccessData, RtData};
 
@@ -15,7 +13,6 @@ use super::{RegisterData, RtDataType, UserExisted};
 #[post("/login", data = "<login_data>")]
 pub async fn login(
     db: BlogDBC,
-    my_config: &State<MyConfig>,
     validator: &State<ValidateData>,
     mut login_data: Form<LoginData>,
 ) -> Result<RtData<LoginSuccessData>, Status> {
@@ -34,7 +31,7 @@ pub async fn login(
                 desc: row.get(1),
                 user_id,
             }
-        },
+        }
         Err(err) => {
             match err {
                 rocket_db_pools::sqlx::Error::RowNotFound => {
@@ -61,7 +58,6 @@ pub async fn login(
 #[post("/register", data = "<register_data>")]
 pub async fn register(
     db: BlogDBC,
-    my_config: &State<MyConfig>,
     validator: &State<ValidateData>,
     register_data: Form<RegisterData>,
 ) -> Result<RtData<RtDataType>, Status> {
@@ -70,20 +66,38 @@ pub async fn register(
     let res = try_register_user(db, register_data.into_inner()).await;
 
     match res {
-        Ok(s) => {
-            dbg!(s);
+        Ok(rt_type) => {
+            dbg!(&rt_type);
+
+            let mut success = true;
+            let mut rt = 3;
+            let mut msg = String::from("registry success !");
+
+            let data = match rt_type {
+                RegisterRtType::Exist(r_msg) => {
+                    success = false;
+                    rt = -33;
+                    msg = r_msg;
+                    RtDataType::Exist(UserExisted(()))
+                }
+                RegisterRtType::Success(login_success_data) => {
+                    RtDataType::Success(login_success_data)
+                }
+            };
+
+            Ok(RtData {
+                success,
+                rt,
+                msg,
+                data,
+            })
         }
         Err(err) => {
             dbg!(err);
+            return Err(Status::InternalServerError);
         }
-    };
+    }
 
-    Redirect::to(uri!(crate::auth::route::login()));
-
-    Ok(RtData {
-        success: false,
-        rt: -33,
-        msg: String::from("phone or email had been registered !"),
-        data: RtDataType::Exist(UserExisted(())),
-    })
 }
+
+// logout 由前端直接清除token即可。

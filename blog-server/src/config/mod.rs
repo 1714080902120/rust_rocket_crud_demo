@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 pub struct MyConfig {
     pub token_field: String,
     pub token_key: String,
-    pub expire_time: u64,
+    pub exp: u64,
 }
 
 impl Default for MyConfig {
@@ -19,7 +19,7 @@ impl Default for MyConfig {
         Self {
             token_field: String::from("_token"),
             token_key: String::from("dan"),
-            expire_time: 24 * 60 * 60 * 1000, // one day
+            exp: 24 * 60 * 60 * 1000, // one day
         }
     }
 }

@@ -1,9 +1,7 @@
 use regex::Regex;
 use rocket::form::Form;
 use rocket::{http::Status, State};
-use serde::{Deserialize, Serialize};
 
-use crate::config::MyConfig;
 
 use super::LoginData;
 

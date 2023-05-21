@@ -3,12 +3,14 @@ use rocket_db_pools::{
 };
 
 
-use rocket::{get, http::Status, response::Redirect, uri};
+use rocket::{get, http::Status, response::Redirect, uri, Request};
 
 
 use crate::db::{ BlogDBC };
 use crate::types::{Article, ArticleData, RtData};
 use crate::article::db_service::get_article;
+
+use super::UserAticleParams;
 
 #[get("/")]
 pub fn index() {
@@ -16,14 +18,13 @@ pub fn index() {
 }
 
 /// get article
-#[get("/get_article?<all>&<id>&<author_id>")]
+#[get("/get_article?<all>&<id>")]
 pub async fn route_article(
     db: BlogDBC,
     all: bool,
     id: &str,
-    author_id: &str,
 ) -> Result<RtData<ArticleData>, Status> {
-    let result = get_article(db, all, id, author_id).await;
+    let result = get_article(db, all, id).await;
 
     match result {
         Ok(v) => {
@@ -31,7 +32,6 @@ pub async fn route_article(
                 id: row.get(0),
                 title: row.get(1),
                 content: row.get(2),
-                author_id: row.get(3),
                 author_name: row.get(4),
                 author_desc: row.get(5),
             });
@@ -40,7 +40,9 @@ pub async fn route_article(
                 success: true,
                 msg: String::from("get all article success!"),
                 rt: 1,
-                data: ArticleData(articles.collect()),
+                data: ArticleData {
+                    list: articles.collect(),
+                },
             })
         }
         Err(err) => {
@@ -48,4 +50,9 @@ pub async fn route_article(
             Err(Status::InternalServerError)
         }
     }
+}
+
+#[get("/user/article?<params>")]
+pub async fn get_user_article<'r>(params: UserAticleParams) {
+    dbg!(params);
 }
