@@ -4,10 +4,11 @@ pub mod route;
 use std::io::Cursor;
 
 use rocket::{
-    data::{self, Outcome, FromData, Data},
+    data::{self, FromData, Data},
     http::{ContentType, Status},
     response::{self, Responder},
     Request, Response,
+    FromForm
 };
 use serde::{Deserialize, Serialize};
 
@@ -90,7 +91,7 @@ pub enum UserArticleType {
 pub struct UserArticle {
     id: String,
     title: String,
-    content: String,
+    description: String,
 }
 
 impl<'r> Responder<'r, 'static> for RtData<UserArticleType> {
@@ -106,57 +107,13 @@ impl<'r> Responder<'r, 'static> for RtData<UserArticleType> {
 
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, FromForm)]
-pub struct AddArticleData {
+pub struct SetArticleData {
+    #[field(name = "id")]
+    id: String,
     #[field(name = "title")]
     title: String,
     #[field(name = "content")]
     content: String,
 }
-
-#[rocket::async_trait]
-impl<'r> FromData<'r> for AddArticleData {
-    type Error = String;
-    async fn from_data(req: &'r Request<'_>, _: Data<'r>) -> data::Outcome<'r, Self> {
-        use rocket::outcome::Outcome;
-        if req
-            .local_cache(|| AuthMsg {
-                is_valid_token: false,
-            })
-            .is_valid_token
-        {
-            let my_config = req
-                .rocket()
-                .state::<MyConfig>()
-                .expect("get global custom config error in fairing");
-            let token_field = my_config.token_field.as_str();
-            let token_key = my_config.token_key.as_str();
-
-            let header = req.headers();
-            let token_data = header.get(token_field).next();
-            if let Some(token) = token_data {
-                let token = decode_token(token, token_key).unwrap();
-                let user_id = token.claims.id;
-                let article_id = req.query_value("id").unwrap().unwrap();
-                let all = req.query_value("all").unwrap().unwrap();
-                return Outcome::Success(UserAticleParams {
-                    user_id,
-                    article_id,
-                    all,
-                });
-            } else {
-                return Outcome::Failure((
-                    Status::BadRequest,
-                    String::from("user no login or token expired"),
-                ));
-            }
-        } else {
-            return Outcome::Failure((
-                Status::BadRequest,
-                String::from("user no login or token expired"),
-            ));
-        }
-    }
-}
-
 
 

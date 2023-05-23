@@ -1,12 +1,13 @@
+use jsonwebtoken::get_current_timestamp;
 use rocket_db_pools::{
     sqlx::{self, postgres::PgRow},
     Connection,
 };
 
-use crate::db::Blog;
+use crate::db::{Blog, BlogDBC};
 
 fn get_article_sql(all: bool, art_id: &str) -> String {
-    let mut sql = String::from("SELECT a.id, a.title, a.content, a.author_id, b.name, b.description FROM public.article AS a LEFT JOIN public.user AS b ON a.author_id = b.id");
+    let mut sql = String::from("SELECT a.id, a.title, a.description, a.author_id, b.name, b.description FROM public.article AS a LEFT JOIN public.user AS b ON a.author_id = b.id");
     if !all {
         sql += match art_id.is_empty() {
             true => {
@@ -34,14 +35,35 @@ pub async fn try_get_user_article(
     user_id: &str,
     id: &str,
 ) -> Result<Vec<PgRow>, sqlx::Error> {
-    let sql = format!("SELECT id, title, content FROM public.article WHERE author_id = '{user_id}'")
-        + if all {
-            format!("")
-        } else {
-            format!(" AND id = {id}")
-        }
-        .as_str();
+    let sql =
+        format!("SELECT id, title, description FROM public.article WHERE author_id = '{user_id}'")
+            + if all {
+                format!("")
+            } else {
+                format!(" AND id = {id}")
+            }
+            .as_str();
 
     let res = sqlx::query(&sql).fetch_all(&mut *db).await?;
     Ok(res)
+}
+
+pub async fn save_article(
+    mut db: BlogDBC,
+    is_add: bool,
+    author_id: String,
+    article_id: String,
+    title: String,
+    description: String,
+) -> Result<(), sqlx::Error> {
+    let modify_time = get_current_timestamp();
+    let sql = if is_add {
+        format!("INSERT (id, title, author_id, description, modify_time) INTO public.article VALUES ('{article_id}', '{title}', '{author_id}', '{description}', {modify_time})")
+    } else {
+        format!("UPDATE public.article SET title = {title}, description = {description}, modify_time = {modify_time} WHERE id = {article_id}")
+    };
+
+    sqlx::query(&sql).fetch_one(&mut *db).await?;
+
+    Ok(())
 }

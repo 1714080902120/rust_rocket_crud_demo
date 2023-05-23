@@ -1,13 +1,19 @@
+use rocket::form::Form;
+use rocket::http::hyper::body::Buf;
 use rocket_db_pools::sqlx::Row;
+use std::fmt::format;
+use std::path::Path;
 
-use rocket::{get, post, http::Status, response::Redirect, uri};
+use rocket::{get, http::Status, post, response::Redirect, tokio::fs, uri};
+use uuid::Uuid;
 
 use crate::article::db_service::{get_article, try_get_user_article};
 use crate::article::UserArticleType;
 use crate::db::BlogDBC;
-use crate::types::{Article, ArticleData, RtData};
+use crate::types::{Article, ArticleData, RtData, UserMsg};
 
-use super::{UserArticle, UserAticleParams, AddArticleData};
+use super::db_service::save_article;
+use super::{SetArticleData, UserArticle, UserAticleParams};
 
 #[get("/")]
 pub fn index() {
@@ -28,7 +34,7 @@ pub async fn route_article(
             let articles = v.iter().map(|row| Article {
                 id: row.get(0),
                 title: row.get(1),
-                content: row.get(2),
+                description: row.get(2),
                 author_name: row.get(4),
                 author_desc: row.get(5),
             });
@@ -71,7 +77,7 @@ pub async fn get_user_article<'r>(
                 .map(|item| UserArticle {
                     id: item.get::<sqlx::types::Uuid, usize>(0).to_string(),
                     title: item.get(1),
-                    content: item.get(2),
+                    description: item.get(2),
                 })
                 .collect();
 
@@ -93,13 +99,62 @@ pub async fn get_user_article<'r>(
             }
             _ => {
                 dbg!(err);
-                return Err(Status::InternalServerError)
-            },
+                return Err(Status::InternalServerError);
+            }
         },
     }
 }
 
-#[post("/add_article", data = "<addArticleData>")]
-pub fn add_article (mut db: BlogDBC, addArticleData: AddArticleData) {
+#[post("/set_article", data = "<setArticleData>")]
+pub async fn set_article(
+    mut db: BlogDBC,
+    setArticleData: Form<SetArticleData>,
+    user_msg: UserMsg,
+) -> Result<(), Status> {
+    let article = setArticleData.into_inner();
 
+    let title = article.title;
+    let content: &[u8] = article.content.as_ref();
+    let user_id = user_msg.id;
+    let article_id = if article.id.is_empty() {
+        Uuid::new_v4().to_string()
+    } else {
+        article.id
+    };
+
+    let dir_path_name = format!("md/{user_id}");
+    let dir_path = Path::new(&dir_path_name);
+    match fs::read_dir(&dir_path).await {
+        Ok(_) => (),
+        Err(_) => {
+            match fs::create_dir(dir_path).await {
+                Ok(_) => (),
+                Err(_) => {
+                    return Err(Status::InternalServerError);
+                }
+            };
+        }
+    };
+
+    let file_path_name = format!("md/{user_id}/{article_id}.{title}.md");
+
+    match fs::write(Path::new(&file_path_name), content).await {
+        Ok(_) => {
+            let mut dst = [0; 200];
+            content.copy_to_slice(&mut dst);
+            save_article(
+                db,
+                article.id.is_empty(),
+                user_id,
+                article_id,
+                title,
+                String::from_utf8(dst.to_vec()),
+            )
+        }
+        Err(err) => {
+            return Err(Status::InternalServerError);
+        }
+    }
+
+    Ok(())
 }
