@@ -20,10 +20,10 @@ pub fn decode_token(token: &str, key: &str) -> Result<TokenData<UserToken>, Erro
     )
 }
 
-pub fn encode_token(user_id: String, expired_time: u64, key: &str) -> String {
+pub fn encode_token(user_id: String, exp: u64, key: &str) -> String {
     let user_token = UserToken {
         id: user_id,
-        exp: get_current_timestamp() + expired_time,
+        exp,
     };
     encode::<UserToken>(
         &Header::default(),

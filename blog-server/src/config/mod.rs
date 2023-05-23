@@ -19,7 +19,7 @@ impl Default for MyConfig {
         Self {
             token_field: String::from("_token"),
             token_key: String::from("dan"),
-            exp: 24 * 60 * 60 * 1000, // one day
+            exp: 24 * 60 * 60, // one day
         }
     }
 }

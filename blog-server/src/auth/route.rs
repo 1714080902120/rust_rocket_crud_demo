@@ -64,7 +64,7 @@ pub async fn register(
     validate_register_data(register_data.clone().into(), &validator)?;
 
     let res = try_register_user(db, register_data.into_inner()).await;
-
+    
     match res {
         Ok(rt_type) => {
             dbg!(&rt_type);

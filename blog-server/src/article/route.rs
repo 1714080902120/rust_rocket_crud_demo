@@ -1,16 +1,13 @@
-use rocket_db_pools::{
-    sqlx::{Row}
-};
+use rocket_db_pools::sqlx::Row;
 
+use rocket::{get, post, http::Status, response::Redirect, uri};
 
-use rocket::{get, http::Status, response::Redirect, uri, Request};
-
-
-use crate::db::{ BlogDBC };
+use crate::article::db_service::{get_article, try_get_user_article};
+use crate::article::UserArticleType;
+use crate::db::BlogDBC;
 use crate::types::{Article, ArticleData, RtData};
-use crate::article::db_service::get_article;
 
-use super::UserAticleParams;
+use super::{UserArticle, UserAticleParams, AddArticleData};
 
 #[get("/")]
 pub fn index() {
@@ -52,7 +49,57 @@ pub async fn route_article(
     }
 }
 
-#[get("/user/article?<params>")]
-pub async fn get_user_article<'r>(params: UserAticleParams) {
-    dbg!(params);
+#[get("/article", data = "<params>")]
+pub async fn get_user_article<'r>(
+    params: UserAticleParams,
+    db: BlogDBC,
+) -> Result<RtData<UserArticleType>, Status> {
+    dbg!(&params);
+
+    let result = try_get_user_article(
+        db,
+        params.all,
+        params.user_id.as_str(),
+        params.article_id.as_str(),
+    )
+    .await;
+
+    match result {
+        Ok(v) => {
+            let data = v
+                .iter()
+                .map(|item| UserArticle {
+                    id: item.get::<sqlx::types::Uuid, usize>(0).to_string(),
+                    title: item.get(1),
+                    content: item.get(2),
+                })
+                .collect();
+
+            return Ok(RtData {
+                success: true,
+                rt: 1,
+                msg: String::from("get user article success"),
+                data: UserArticleType::Success(data),
+            });
+        }
+        Err(err) => match err {
+            sqlx::Error::RowNotFound => {
+                return Ok(RtData {
+                    success: true,
+                    rt: 1,
+                    msg: String::from("get user article success"),
+                    data: UserArticleType::Success(Vec::new()),
+                })
+            }
+            _ => {
+                dbg!(err);
+                return Err(Status::InternalServerError)
+            },
+        },
+    }
+}
+
+#[post("/add_article", data = "<addArticleData>")]
+pub fn add_article (mut db: BlogDBC, addArticleData: AddArticleData) {
+
 }

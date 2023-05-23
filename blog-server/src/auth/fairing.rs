@@ -49,6 +49,7 @@ impl Fairing for UserToken {
                 return;
             }
         };
+        
         // validate time
         let exp: u64 = token.claims.exp;
         match get_current_timestamp().cmp(&exp) {

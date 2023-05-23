@@ -27,6 +27,6 @@ fn rocket() -> _ {
             "/",
             catchers![error_catcher, not_found_catcher, bad_request_catcher],
         )
-        .mount("/", routes![index, route_article, get_user_article])
-        .mount("/user", routes![login, register])
+        .mount("/", routes![index, route_article])
+        .mount("/user", routes![login, register, get_user_article])
 }
