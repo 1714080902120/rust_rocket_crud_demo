@@ -19,6 +19,7 @@ use crate::{
 pub struct Article {
     pub id: String,
     pub title: String,
+    pub modify_time: u64,
     pub description: String,
     pub author_name: String,
     pub author_desc: String,

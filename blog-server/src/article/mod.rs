@@ -92,6 +92,7 @@ pub struct UserArticle {
     id: String,
     title: String,
     description: String,
+    modify_time: u64,
 }
 
 impl<'r> Responder<'r, 'static> for RtData<UserArticleType> {
@@ -116,4 +117,19 @@ pub struct SetArticleData {
     content: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SetArticleDataState {
+    Success(u64),
+    Fail(()),
+}
 
+impl <'r>Responder<'r, 'static> for RtData<SetArticleDataState> {
+    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
+        let data = self.to_string();
+
+        Response::build()
+            .header(ContentType::JSON)
+            .sized_body(data.len(), Cursor::new(data))
+            .ok()
+    }
+}

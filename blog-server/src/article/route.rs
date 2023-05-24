@@ -13,7 +13,7 @@ use crate::db::BlogDBC;
 use crate::types::{Article, ArticleData, RtData, UserMsg};
 
 use super::db_service::save_article;
-use super::{SetArticleData, UserArticle, UserAticleParams};
+use super::{SetArticleData, SetArticleDataState, UserArticle, UserAticleParams};
 
 #[get("/")]
 pub fn index() {
@@ -35,8 +35,9 @@ pub async fn route_article(
                 id: row.get(0),
                 title: row.get(1),
                 description: row.get(2),
-                author_name: row.get(4),
-                author_desc: row.get(5),
+                modify_time: row.get::<i64, usize>(4) as u64,
+                author_name: row.get(5),
+                author_desc: row.get(6),
             });
 
             Ok(RtData {
@@ -78,6 +79,7 @@ pub async fn get_user_article<'r>(
                     id: item.get::<sqlx::types::Uuid, usize>(0).to_string(),
                     title: item.get(1),
                     description: item.get(2),
+                    modify_time: item.get::<i64, usize>(3) as u64,
                 })
                 .collect();
 
@@ -105,18 +107,20 @@ pub async fn get_user_article<'r>(
     }
 }
 
-#[post("/set_article", data = "<setArticleData>")]
+#[post("/set_article", data = "<set_article_data>")]
 pub async fn set_article(
-    mut db: BlogDBC,
-    setArticleData: Form<SetArticleData>,
+    db: BlogDBC,
+    set_article_data: Form<SetArticleData>,
     user_msg: UserMsg,
-) -> Result<(), Status> {
-    let article = setArticleData.into_inner();
+) -> Result<RtData<SetArticleDataState>, Status> {
+    let article = set_article_data.into_inner();
 
     let title = article.title;
-    let content: &[u8] = article.content.as_ref();
+    let save_content = format!("# {title}\n") + article.content.as_str();
+    let content_buf: &[u8] = save_content.as_ref();
     let user_id = user_msg.id;
-    let article_id = if article.id.is_empty() {
+    let is_add = article.id.is_empty();
+    let article_id = if is_add {
         Uuid::new_v4().to_string()
     } else {
         article.id
@@ -136,25 +140,59 @@ pub async fn set_article(
         }
     };
 
-    let file_path_name = format!("md/{user_id}/{article_id}.{title}.md");
+    let file_path_name = format!("md/{user_id}/{article_id}.md");
 
-    match fs::write(Path::new(&file_path_name), content).await {
+    match fs::write(Path::new(&file_path_name), content_buf).await {
         Ok(_) => {
-            let mut dst = [0; 200];
-            content.copy_to_slice(&mut dst);
-            save_article(
+            let content_len = article.content.len();
+            let dst = if content_len < 200 {
+                article.content.as_str()
+            } else {
+                article.content.get(0..=200).unwrap()
+            };
+            match save_article(
                 db,
-                article.id.is_empty(),
+                is_add,
                 user_id,
                 article_id,
                 title,
-                String::from_utf8(dst.to_vec()),
+                dst,
             )
+            .await
+            {
+                Ok(modifiy_time) => {
+                    return Ok(RtData {
+                        success: true,
+                        rt: 44,
+                        msg: String::from("set article success"),
+                        data: SetArticleDataState::Success(modifiy_time),
+                    });
+                }
+                Err((err, _modify_time)) => {
+                    dbg!(&err);
+                    match err {
+                        sqlx::Error::RowNotFound => {
+                            return Ok(RtData {
+                                success: true,
+                                rt: 44,
+                                msg: String::from("set article success"),
+                                data: SetArticleDataState::Success(_modify_time),
+                            });
+                        },
+                        _ => return Ok(RtData {
+                            success: false,
+                            rt: -44,
+                            msg: String::from("set article fail"),
+                            data: SetArticleDataState::Fail(()),
+                        })
+                    };
+                    
+                }
+            }
         }
         Err(err) => {
+            dbg!(err);
             return Err(Status::InternalServerError);
         }
-    }
-
-    Ok(())
+    };
 }
