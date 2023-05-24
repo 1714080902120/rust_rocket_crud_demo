@@ -1,18 +1,16 @@
 use rocket::form::Form;
-use rocket::http::hyper::body::Buf;
 use rocket_db_pools::sqlx::Row;
-use std::fmt::format;
 use std::path::Path;
 
-use rocket::{get, http::Status, post, response::Redirect, tokio::fs, uri};
+use rocket::{delete, get, http::Status, post, response::Redirect, tokio::fs, uri};
 use uuid::Uuid;
 
 use crate::article::db_service::{get_article, try_get_user_article};
 use crate::article::UserArticleType;
 use crate::db::BlogDBC;
-use crate::types::{Article, ArticleData, RtData, UserMsg};
+use crate::types::{Article, ArticleData, DefaultSuccessData, RtData, UserMsg};
 
-use super::db_service::save_article;
+use super::db_service::{save_article, try_delete_article};
 use super::{SetArticleData, SetArticleDataState, UserArticle, UserAticleParams};
 
 #[get("/")]
@@ -150,16 +148,7 @@ pub async fn set_article(
             } else {
                 article.content.get(0..=200).unwrap()
             };
-            match save_article(
-                db,
-                is_add,
-                user_id,
-                article_id,
-                title,
-                dst,
-            )
-            .await
-            {
+            match save_article(db, is_add, user_id, article_id, title, dst).await {
                 Ok(modifiy_time) => {
                     return Ok(RtData {
                         success: true,
@@ -178,15 +167,16 @@ pub async fn set_article(
                                 msg: String::from("set article success"),
                                 data: SetArticleDataState::Success(_modify_time),
                             });
-                        },
-                        _ => return Ok(RtData {
-                            success: false,
-                            rt: -44,
-                            msg: String::from("set article fail"),
-                            data: SetArticleDataState::Fail(()),
-                        })
+                        }
+                        _ => {
+                            return Ok(RtData {
+                                success: false,
+                                rt: -44,
+                                msg: String::from("set article fail"),
+                                data: SetArticleDataState::Fail(()),
+                            })
+                        }
                     };
-                    
                 }
             }
         }
@@ -195,4 +185,37 @@ pub async fn set_article(
             return Err(Status::InternalServerError);
         }
     };
+}
+
+#[delete("/del_article?<id>")]
+pub async fn del_article(
+    db: BlogDBC,
+    id: String,
+    user_msg: UserMsg,
+) -> Result<RtData<DefaultSuccessData>, Status> {
+    let user_id = user_msg.id;
+
+    match try_delete_article(db, id, user_id).await {
+        Ok(state) => {
+            if state {
+                Ok(RtData {
+                    success: true,
+                    rt: 55,
+                    data: DefaultSuccessData(()),
+                    msg: String::from("delete success !"),
+                })
+            } else {
+                Ok(RtData {
+                    success: false,
+                    rt: -55,
+                    data: DefaultSuccessData(()),
+                    msg: String::from("delete fail, 有内鬼，终止交易!"),
+                })
+            }
+        }
+        Err(err) => {
+            dbg!(err);
+            return Err(Status::InternalServerError);
+        }
+    }
 }

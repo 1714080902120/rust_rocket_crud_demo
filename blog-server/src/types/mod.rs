@@ -28,6 +28,9 @@ pub struct Article {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct FailureData(pub ());
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+pub struct DefaultSuccessData(pub ());
+
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct ArticleData {
     pub list: Vec<Article>,
@@ -55,6 +58,17 @@ impl<T: Serialize> RtData<T> {
 }
 
 impl<'r> Responder<'r, 'static> for RtData<FailureData> {
+    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
+        let data = self.to_string();
+
+        Response::build()
+            .header(ContentType::JSON)
+            .sized_body(data.len(), Cursor::new(data))
+            .ok()
+    }
+}
+
+impl<'r> Responder<'r, 'static> for RtData<DefaultSuccessData> {
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
         let data = self.to_string();
 

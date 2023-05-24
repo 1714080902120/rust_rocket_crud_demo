@@ -66,13 +66,37 @@ pub async fn save_article(
     dbg!(&sql);
 
     match sqlx::query(&sql).fetch_one(&mut *db).await {
-        Ok(_) => {
-            Ok(modify_time)
-        },
-        Err(err) => {
-            Err((err, modify_time))
-        }
+        Ok(_) => Ok(modify_time),
+        Err(err) => Err((err, modify_time)),
     }
+}
 
-    
+pub async fn try_delete_article(
+    mut db: BlogDBC,
+    id: String,
+    author_id: String,
+) -> Result<bool, sqlx::Error> {
+    let query_sql = format!(
+        "SELECT * FROM public.article WHERE id = '{id}' AND author_id = '{author_id}' LIMIT 1"
+    );
+
+    match sqlx::query(&query_sql).fetch_one(&mut *db).await {
+        Ok(_) => {
+            let sql = format!(
+                "DELETE FROM public.article WHERE id = '{id}' AND author_id = '{author_id}'"
+            );
+            dbg!(&sql);
+            match sqlx::query(&sql).fetch_one(&mut *db).await {
+                Ok(_) => Ok(true),
+                Err(e) => match e {
+                    sqlx::Error::RowNotFound => Ok(true),
+                    _ => return Err(e),
+                },
+            }
+        }
+        Err(err) => match err {
+            sqlx::Error::RowNotFound => Ok(false),
+            _ => return Err(err),
+        },
+    }
 }
