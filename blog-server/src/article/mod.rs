@@ -115,6 +115,8 @@ pub struct SetArticleData {
     title: String,
     #[field(name = "content")]
     content: String,
+    #[field(name = "is_publish")]
+    is_publish: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]

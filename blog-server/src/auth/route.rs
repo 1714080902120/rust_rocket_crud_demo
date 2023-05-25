@@ -3,7 +3,7 @@ use rocket::{form::Form, post, State};
 use rocket_db_pools::sqlx::Row;
 
 use crate::auth::{db_service::{RegisterRtType, get_user_msg}, LoginData};
-use crate::db::BlogDBC;
+use crate::db::{BlogDBC, SqlxError};
 use crate::types::{LoginSuccessData, RtData};
 
 use super::db_service::try_register_user;
@@ -34,7 +34,7 @@ pub async fn login(
         }
         Err(err) => {
             match err {
-                rocket_db_pools::sqlx::Error::RowNotFound => {
+                SqlxError::RowNotFound => {
                     dbg!("row not found");
                     return Err(Status::BadRequest);
                 }

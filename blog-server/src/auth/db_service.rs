@@ -1,4 +1,4 @@
-use crate::{db::BlogDBC, types::LoginSuccessData};
+use crate::{db::{BlogDBC, SqlxError, DbQueryResult}, types::LoginSuccessData};
 use jsonwebtoken::get_current_timestamp;
 use rocket_db_pools::sqlx::{self, postgres::PgRow};
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ pub enum RegisterRtType {
 pub async fn get_user_msg(
     (login_key, pwd, is_email): (String, String, bool),
     mut db: BlogDBC,
-) -> Result<PgRow, rocket_db_pools::sqlx::Error> {
+) -> DbQueryResult<PgRow> {
     let condition = if is_email {
         format!("email = '{login_key}'")
     } else {
@@ -34,7 +34,7 @@ pub async fn get_user_msg(
 pub async fn try_register_user(
     mut db: BlogDBC,
     register_data: RegisterData,
-) -> Result<RegisterRtType, rocket_db_pools::sqlx::Error> {
+) -> DbQueryResult<RegisterRtType> {
     let (name, pwd, email, phone, desc) = register_data.into();
 
     let email_c = email.as_str();
@@ -45,7 +45,7 @@ pub async fn try_register_user(
 
     let res = if let Err(db_err) = sqlx::query(&sql).fetch_one(&mut *db).await {
         match db_err {
-            rocket_db_pools::sqlx::Error::RowNotFound => {
+            SqlxError::RowNotFound => {
                 register_user(db, (name, pwd, email, phone, desc)).await?
             }
             _ => return Err(db_err),
@@ -62,7 +62,7 @@ pub async fn try_register_user(
 pub async fn register_user(
     mut db: BlogDBC,
     (name, pwd, email, phone, desc): (String, String, String, String, String),
-) -> Result<RegisterRtType, rocket_db_pools::sqlx::Error> {
+) -> DbQueryResult<RegisterRtType> {
     let id = Uuid::new_v4();
     let pwd = format!("{:x}", md5::compute(pwd));
     let create_time = get_current_timestamp();
@@ -88,7 +88,7 @@ pub async fn register_user(
             user_id: id.to_string(),
         })),
         Err(err) => {
-            if let sqlx::Error::RowNotFound = err {
+            if let SqlxError::RowNotFound = err {
                 return Ok(RegisterRtType::Success(LoginSuccessData {
                     name,
                     desc,

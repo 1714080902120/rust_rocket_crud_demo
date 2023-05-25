@@ -1,3 +1,5 @@
+pub mod rt_type;
+
 use std::io::Cursor;
 
 use rocket::{
@@ -14,6 +16,8 @@ use crate::{
     auth::{token::decode_token, AuthMsg},
     config::MyConfig,
 };
+
+
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Article {

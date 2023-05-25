@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::article::db_service::{get_article, try_get_user_article};
 use crate::article::UserArticleType;
-use crate::db::BlogDBC;
+use crate::db::{BlogDBC, SqlxError};
 use crate::types::{Article, ArticleData, DefaultSuccessData, RtData, UserMsg};
 
 use super::db_service::{save_article, try_delete_article};
@@ -19,13 +19,18 @@ pub fn index() {
 }
 
 /// get article
-#[get("/get_article?<all>&<id>")]
+#[get("/get_article?<all>&<id>&<limit>&<page_no>")]
 pub async fn route_article(
     db: BlogDBC,
     all: bool,
     id: &str,
+    limit: i32,
+    page_no: i32,
 ) -> Result<RtData<ArticleData>, Status> {
-    let result = get_article(db, all, id).await;
+
+    let limit = if limit < 0 { 20 } else { limit };
+
+    let result = get_article(db, all, id, limit, page_no).await;
 
     match result {
         Ok(v) => {
@@ -89,7 +94,7 @@ pub async fn get_user_article<'r>(
             });
         }
         Err(err) => match err {
-            sqlx::Error::RowNotFound => {
+            SqlxError::RowNotFound => {
                 return Ok(RtData {
                     success: true,
                     rt: 1,
@@ -117,6 +122,7 @@ pub async fn set_article(
     let save_content = format!("# {title}\n") + article.content.as_str();
     let content_buf: &[u8] = save_content.as_ref();
     let user_id = user_msg.id;
+    let is_publish = article.is_publish;
     let is_add = article.id.is_empty();
     let article_id = if is_add {
         Uuid::new_v4().to_string()
@@ -148,7 +154,7 @@ pub async fn set_article(
             } else {
                 article.content.get(0..=200).unwrap()
             };
-            match save_article(db, is_add, user_id, article_id, title, dst).await {
+            match save_article(db, is_add, user_id, article_id, title, dst, is_publish).await {
                 Ok(modifiy_time) => {
                     return Ok(RtData {
                         success: true,
@@ -160,7 +166,7 @@ pub async fn set_article(
                 Err((err, _modify_time)) => {
                     dbg!(&err);
                     match err {
-                        sqlx::Error::RowNotFound => {
+                        SqlxError::RowNotFound => {
                             return Ok(RtData {
                                 success: true,
                                 rt: 44,
