@@ -1,3 +1,4 @@
+use rocket::State;
 use rocket::form::Form;
 use rocket_db_pools::sqlx::Row;
 use std::path::Path;
@@ -7,7 +8,9 @@ use uuid::Uuid;
 
 use crate::article::db_service::{get_article, try_get_user_article};
 use crate::article::UserArticleType;
+use crate::config::MyConfig;
 use crate::db::{BlogDBC, SqlxError};
+use crate::types::rt_type::Rt;
 use crate::types::{Article, ArticleData, DefaultSuccessData, RtData, UserMsg};
 
 use super::db_service::{save_article, try_delete_article};
@@ -46,7 +49,7 @@ pub async fn route_article(
             Ok(RtData {
                 success: true,
                 msg: String::from("get all article success!"),
-                rt: 1,
+                rt: Rt::Success,
                 data: ArticleData {
                     list: articles.collect(),
                 },
@@ -88,7 +91,7 @@ pub async fn get_user_article<'r>(
 
             return Ok(RtData {
                 success: true,
-                rt: 1,
+                rt: Rt::Success,
                 msg: String::from("get user article success"),
                 data: UserArticleType::Success(data),
             });
@@ -97,7 +100,7 @@ pub async fn get_user_article<'r>(
             SqlxError::RowNotFound => {
                 return Ok(RtData {
                     success: true,
-                    rt: 1,
+                    rt: Rt::Success,
                     msg: String::from("get user article success"),
                     data: UserArticleType::Success(Vec::new()),
                 })
@@ -115,7 +118,10 @@ pub async fn set_article(
     db: BlogDBC,
     set_article_data: Form<SetArticleData>,
     user_msg: UserMsg,
+    my_config: &State<MyConfig>
 ) -> Result<RtData<SetArticleDataState>, Status> {
+    let slice_len = my_config.slice_len;
+
     let article = set_article_data.into_inner();
 
     let title = article.title;
@@ -149,16 +155,16 @@ pub async fn set_article(
     match fs::write(Path::new(&file_path_name), content_buf).await {
         Ok(_) => {
             let content_len = article.content.len();
-            let dst = if content_len < 200 {
+            let dst = if content_len < (slice_len as usize) {
                 article.content.as_str()
             } else {
-                article.content.get(0..=200).unwrap()
+                article.content.get(0..=(slice_len as usize)).unwrap()
             };
             match save_article(db, is_add, user_id, article_id, title, dst, is_publish).await {
                 Ok(modifiy_time) => {
                     return Ok(RtData {
                         success: true,
-                        rt: 44,
+                        rt: Rt::Success,
                         msg: String::from("set article success"),
                         data: SetArticleDataState::Success(modifiy_time),
                     });
@@ -169,7 +175,7 @@ pub async fn set_article(
                         SqlxError::RowNotFound => {
                             return Ok(RtData {
                                 success: true,
-                                rt: 44,
+                                rt: Rt::Success,
                                 msg: String::from("set article success"),
                                 data: SetArticleDataState::Success(_modify_time),
                             });
@@ -177,7 +183,7 @@ pub async fn set_article(
                         _ => {
                             return Ok(RtData {
                                 success: false,
-                                rt: -44,
+                                rt: Rt::Fail,
                                 msg: String::from("set article fail"),
                                 data: SetArticleDataState::Fail(()),
                             })
@@ -206,14 +212,14 @@ pub async fn del_article(
             if state {
                 Ok(RtData {
                     success: true,
-                    rt: 55,
+                    rt: Rt::Success,
                     data: DefaultSuccessData(()),
                     msg: String::from("delete success !"),
                 })
             } else {
                 Ok(RtData {
                     success: false,
-                    rt: -55,
+                    rt: Rt::Fail,
                     data: DefaultSuccessData(()),
                     msg: String::from("delete fail, 有内鬼，终止交易!"),
                 })
@@ -225,3 +231,5 @@ pub async fn del_article(
         }
     }
 }
+
+

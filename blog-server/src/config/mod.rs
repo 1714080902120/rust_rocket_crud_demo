@@ -12,6 +12,7 @@ pub struct MyConfig {
     pub token_field: String,
     pub token_key: String,
     pub exp: u64,
+    pub slice_len: u64,
 }
 
 impl Default for MyConfig {
@@ -20,6 +21,7 @@ impl Default for MyConfig {
             token_field: String::from("_token"),
             token_key: String::from("dan"),
             exp: 24 * 60 * 60, // one day
+            slice_len: 200,
         }
     }
 }

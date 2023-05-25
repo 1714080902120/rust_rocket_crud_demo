@@ -1,3 +1,4 @@
+use crate::types::rt_type::Rt;
 use rocket::http::Status;
 use rocket::{form::Form, post, State};
 use rocket_db_pools::sqlx::Row;
@@ -50,7 +51,7 @@ pub async fn login(
     Ok(RtData {
         success: true,
         msg: String::from("login success"),
-        rt: 111,
+        rt: Rt::Success,
         data: user_msg,
     })
 }
@@ -70,13 +71,13 @@ pub async fn register(
             dbg!(&rt_type);
 
             let mut success = true;
-            let mut rt = 3;
+            let mut rt = Rt::Success;
             let mut msg = String::from("registry success !");
 
             let data = match rt_type {
                 RegisterRtType::Exist(r_msg) => {
                     success = false;
-                    rt = -33;
+                    rt = Rt::Fail;
                     msg = r_msg;
                     RtDataType::Exist(UserExisted(()))
                 }

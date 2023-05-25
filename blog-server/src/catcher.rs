@@ -1,5 +1,5 @@
 use std::path::Path;
-use crate::types::{ FailureData, RtData };
+use crate::types::{ FailureData, RtData, rt_type::Rt };
 
 use rocket::{
     serde::json::{serde_json::json, Value}, fs::NamedFile,
@@ -10,7 +10,7 @@ use rocket::{
 pub fn bad_request_catcher() -> Option<RtData<FailureData>> {
     Some(RtData {
         success: false,
-        rt: -3,
+        rt: Rt::Fail,
         msg: String::from("get wrong params"),
         data: FailureData(())
     })

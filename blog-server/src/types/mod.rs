@@ -17,6 +17,8 @@ use crate::{
     config::MyConfig,
 };
 
+use self::rt_type::Rt;
+
 
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
@@ -50,7 +52,7 @@ pub struct LoginSuccessData {
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct RtData<T> {
     pub success: bool,
-    pub rt: i32,
+    pub rt: Rt,
     pub data: T,
     pub msg: String,
 }

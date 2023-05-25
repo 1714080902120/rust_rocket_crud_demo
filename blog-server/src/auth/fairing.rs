@@ -1,3 +1,4 @@
+use crate::types::rt_type::Rt;
 use jsonwebtoken::{get_current_timestamp};
 use rocket::{
     fairing::{Fairing, Info, Kind},
@@ -75,7 +76,7 @@ impl Fairing for UserToken {
             res.set_header(ContentType::JSON);
             let data = RtData {
                 success: false,
-                rt: -1,
+                rt: Rt::Fail,
                 data: FailureData(()),
                 msg: String::from("user not login or expired token !")
             };
