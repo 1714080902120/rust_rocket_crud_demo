@@ -1,4 +1,6 @@
 mod db_service;
+mod file_operate;
+
 pub mod route;
 
 use std::io::Cursor;
@@ -126,6 +128,32 @@ pub enum SetArticleDataState {
 }
 
 impl <'r>Responder<'r, 'static> for RtData<SetArticleDataState> {
+    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
+        let data = self.to_string();
+
+        Response::build()
+            .header(ContentType::JSON)
+            .sized_body(data.len(), Cursor::new(data))
+            .ok()
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArticleDetail {
+    id: String,
+    title: String,
+    content: String,
+    modify_time: u64,
+    can_edit: bool
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ArticleDetailData {
+    Success(ArticleDetail),
+    Fail
+}
+
+impl <'r>Responder<'r, 'static> for RtData<ArticleDetailData> {
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
         let data = self.to_string();
 

@@ -1,5 +1,5 @@
-use rocket::State;
 use rocket::form::Form;
+use rocket::State;
 use rocket_db_pools::sqlx::Row;
 use std::path::Path;
 
@@ -13,8 +13,12 @@ use crate::db::{BlogDBC, SqlxError};
 use crate::types::rt_type::Rt;
 use crate::types::{Article, ArticleData, DefaultSuccessData, RtData, UserMsg};
 
-use super::db_service::{save_article, try_delete_article};
-use super::{SetArticleData, SetArticleDataState, UserArticle, UserAticleParams};
+use super::db_service::{article_detail, save_article, try_delete_article};
+use super::file_operate::{write_into_md, read_md_into_str};
+use super::{
+    ArticleDetail, ArticleDetailData, SetArticleData, SetArticleDataState, UserArticle,
+    UserAticleParams,
+};
 
 #[get("/")]
 pub fn index() {
@@ -30,7 +34,6 @@ pub async fn route_article(
     limit: i32,
     page_no: i32,
 ) -> Result<RtData<ArticleData>, Status> {
-
     let limit = if limit < 0 { 20 } else { limit };
 
     let result = get_article(db, all, id, limit, page_no).await;
@@ -118,7 +121,7 @@ pub async fn set_article(
     db: BlogDBC,
     set_article_data: Form<SetArticleData>,
     user_msg: UserMsg,
-    my_config: &State<MyConfig>
+    my_config: &State<MyConfig>,
 ) -> Result<RtData<SetArticleDataState>, Status> {
     let slice_len = my_config.slice_len;
 
@@ -150,53 +153,45 @@ pub async fn set_article(
         }
     };
 
-    let file_path_name = format!("md/{user_id}/{article_id}.md");
+    write_into_md(&user_id, &article_id, content_buf).await?;
 
-    match fs::write(Path::new(&file_path_name), content_buf).await {
-        Ok(_) => {
-            let content_len = article.content.len();
-            let dst = if content_len < (slice_len as usize) {
-                article.content.as_str()
-            } else {
-                article.content.get(0..=(slice_len as usize)).unwrap()
-            };
-            match save_article(db, is_add, user_id, article_id, title, dst, is_publish).await {
-                Ok(modifiy_time) => {
+    let content_len = article.content.len();
+    let dst = if content_len < (slice_len as usize) {
+        article.content.as_str()
+    } else {
+        article.content.get(0..=(slice_len as usize)).unwrap()
+    };
+    match save_article(db, is_add, user_id, article_id, title, dst, is_publish).await {
+        Ok(modifiy_time) => {
+            return Ok(RtData {
+                success: true,
+                rt: Rt::Success,
+                msg: String::from("set article success"),
+                data: SetArticleDataState::Success(modifiy_time),
+            });
+        }
+        Err((err, _modify_time)) => {
+            dbg!(&err);
+            match err {
+                SqlxError::RowNotFound => {
                     return Ok(RtData {
                         success: true,
                         rt: Rt::Success,
                         msg: String::from("set article success"),
-                        data: SetArticleDataState::Success(modifiy_time),
+                        data: SetArticleDataState::Success(_modify_time),
                     });
                 }
-                Err((err, _modify_time)) => {
-                    dbg!(&err);
-                    match err {
-                        SqlxError::RowNotFound => {
-                            return Ok(RtData {
-                                success: true,
-                                rt: Rt::Success,
-                                msg: String::from("set article success"),
-                                data: SetArticleDataState::Success(_modify_time),
-                            });
-                        }
-                        _ => {
-                            return Ok(RtData {
-                                success: false,
-                                rt: Rt::Fail,
-                                msg: String::from("set article fail"),
-                                data: SetArticleDataState::Fail(()),
-                            })
-                        }
-                    };
+                _ => {
+                    return Ok(RtData {
+                        success: false,
+                        rt: Rt::Fail,
+                        msg: String::from("set article fail"),
+                        data: SetArticleDataState::Fail(()),
+                    })
                 }
-            }
+            };
         }
-        Err(err) => {
-            dbg!(err);
-            return Err(Status::InternalServerError);
-        }
-    };
+    }
 }
 
 #[delete("/del_article?<id>")]
@@ -232,4 +227,39 @@ pub async fn del_article(
     }
 }
 
+#[get("/article_detail?<id>")]
+pub async fn get_article_detail(
+    db: BlogDBC,
+    id: &str,
+    user_msg: UserMsg,
+) -> Result<RtData<ArticleDetailData>, Status> {
+    match article_detail(db, id).await {
+        Ok(row) => {
+            let author_id: String = row.get(3);
+            let content = read_md_into_str(&user_msg.id, &id).await?;
 
+            let article_detail = ArticleDetail {
+                id: row.get(0),
+                title: row.get(1),
+                content,
+                modify_time: row.get::<i64, usize>(2) as u64,
+                can_edit: author_id == user_msg.id,
+            };
+            Ok(RtData {
+                success: true,
+                rt: Rt::Success,
+                data: ArticleDetailData::Success(article_detail),
+                msg: String::from("get detail success"),
+            })
+        }
+        Err(err) => match err {
+            SqlxError::RowNotFound => Ok(RtData {
+                success: false,
+                rt: Rt::Fail,
+                data: ArticleDetailData::Fail,
+                msg: String::from("not found"),
+            }),
+            _ => return Err(Status::InternalServerError),
+        },
+    }
+}

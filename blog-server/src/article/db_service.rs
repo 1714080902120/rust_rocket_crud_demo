@@ -99,3 +99,13 @@ pub async fn try_delete_article(
         },
     }
 }
+
+
+pub async fn article_detail(mut db: BlogDBC, id: &str) -> Result<PgRow, SqlxError> {
+
+    let sql = format!("SELECT id, title, modify_time, author_id FROM public.article WHERE id = '{id}' AND is_publish = true");
+
+    let res = sqlx::query(&sql).fetch_one(&mut *db).await?;
+
+    Ok(res)
+}
