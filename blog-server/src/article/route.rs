@@ -9,12 +9,12 @@ use uuid::Uuid;
 use crate::article::db_service::{get_article, try_get_user_article};
 use crate::article::UserArticleType;
 use crate::config::MyConfig;
-use crate::db::{BlogDBC, SqlxError};
+use crate::db::{is_row_not_found, BlogDBC, SqlxError};
 use crate::types::rt_type::Rt;
-use crate::types::{Article, ArticleData, DefaultSuccessData, RtData, UserMsg};
+use crate::types::{Article, ArticleData, DefaultSuccessData, GetArticleData, RtData, UserMsg};
 
-use super::db_service::{article_detail, save_article, try_delete_article};
-use super::file_operate::{write_into_md, read_md_into_str};
+use super::db_service::{article_detail, save_article, try_delete_article, try_search_article};
+use super::file_operate::{read_md_into_str, write_into_md};
 use super::{
     ArticleDetail, ArticleDetailData, SetArticleData, SetArticleDataState, UserArticle,
     UserAticleParams,
@@ -252,14 +252,53 @@ pub async fn get_article_detail(
                 msg: String::from("get detail success"),
             })
         }
-        Err(err) => match err {
-            SqlxError::RowNotFound => Ok(RtData {
-                success: false,
-                rt: Rt::Fail,
-                data: ArticleDetailData::Fail,
-                msg: String::from("not found"),
+        Err(err) => {
+            if is_row_not_found(err) {
+                return Ok(RtData {
+                    success: false,
+                    rt: Rt::Fail,
+                    data: ArticleDetailData::Fail,
+                    msg: String::from("not found"),
+                });
+            } else {
+                return Err(Status::InternalServerError);
+            }
+        }
+    }
+}
+
+#[get("/search?<condition>")]
+pub async fn saerch_article(
+    db: BlogDBC,
+    condition: &str,
+) -> Result<RtData<GetArticleData>, Status> {
+    match try_search_article(db, condition).await {
+        Ok(rows) => Ok(RtData {
+            success: true,
+            rt: Rt::Success,
+            data: GetArticleData::Success(ArticleData {
+                list: rows.iter().map(|row| Article {
+                    id: row.get(0),
+                    title: row.get(1),
+                    modify_time: row.get::<i64, usize>(2) as u64,
+                    description: row.get(3),
+                    author_name: row.get(4),
+                    author_desc: row.get(5),
+                }).collect(),
             }),
-            _ => return Err(Status::InternalServerError),
-        },
+            msg: String::from("search success"),
+        }),
+        Err(err) => {
+            if is_row_not_found(err) {
+                Ok(RtData {
+                    success: false,
+                    rt: Rt::Fail,
+                    msg: String::from("not found"),
+                    data: GetArticleData::Fail,
+                })
+            } else {
+                return Err(Status::InternalServerError);
+            }
+        }
     }
 }

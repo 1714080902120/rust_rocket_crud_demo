@@ -127,3 +127,37 @@ impl<'r> FromRequest<'r> for UserMsg {
         }
     }
 }
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GetArticleData {
+    Success(ArticleData),
+    Fail,
+}
+
+impl<'r> Responder<'r, 'static> for RtData<GetArticleData> {
+    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
+        let data = self.to_string();
+
+        Response::build()
+            .header(ContentType::JSON)
+            .sized_body(data.len(), Cursor::new(data))
+            .ok()
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DataType {
+    DefaultSuccessData(()),
+    Fail
+}
+
+impl<'r> Responder<'r, 'static> for RtData<DataType>  {
+    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
+        let data = self.to_string();
+
+        Response::build()
+            .header(ContentType::JSON)
+            .sized_body(data.len(), Cursor::new(data))
+            .ok()
+    }
+}

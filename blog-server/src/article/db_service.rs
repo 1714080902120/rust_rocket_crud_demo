@@ -101,11 +101,19 @@ pub async fn try_delete_article(
 }
 
 
-pub async fn article_detail(mut db: BlogDBC, id: &str) -> Result<PgRow, SqlxError> {
+pub async fn article_detail(mut db: BlogDBC, id: &str) -> DbQueryResult<PgRow> {
 
     let sql = format!("SELECT id, title, modify_time, author_id FROM public.article WHERE id = '{id}' AND is_publish = true");
 
     let res = sqlx::query(&sql).fetch_one(&mut *db).await?;
+
+    Ok(res)
+}
+
+pub async fn try_search_article(mut db: BlogDBC, condition: &str) -> DbQueryResult<Vec<PgRow>> {
+    let sql = format!("SELECT a.id, a.title, a.modify_time, a.description, b.name, b.description FROM public.article AS a LEFT JOIN public.user AS b ON a.author_id = b.id WHERE a.is_publish = true AND (a.title::TEXT LIKE '%{condition}%' OR a.description::TEXT LIKE '%{condition}%')");
+
+    let res = sqlx::query(&sql).fetch_all(&mut *db).await?;
 
     Ok(res)
 }
