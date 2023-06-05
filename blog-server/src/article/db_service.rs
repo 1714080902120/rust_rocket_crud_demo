@@ -23,7 +23,8 @@ pub async fn get_article(
         }
         .as_str();
     }
-    sql += format!(" LIMIT = {limit} OFFSET = {offset}").as_str();
+    sql += format!(" LIMIT {limit} OFFSET {offset}").as_str();
+    dbg!(&sql);
     sqlx::query(&sql).fetch_all(&mut *db).await
 }
 
@@ -114,6 +115,6 @@ pub async fn try_search_article(mut db: BlogDBC, condition: &str) -> DbQueryResu
     let sql = format!("SELECT a.id, a.title, a.modify_time, a.description, b.name, b.description FROM public.article AS a LEFT JOIN public.user AS b ON a.author_id = b.id WHERE a.is_publish = true AND (a.title::TEXT LIKE '%{condition}%' OR a.description::TEXT LIKE '%{condition}%')");
 
     let res = sqlx::query(&sql).fetch_all(&mut *db).await?;
-
+    dbg!(sql);
     Ok(res)
 }

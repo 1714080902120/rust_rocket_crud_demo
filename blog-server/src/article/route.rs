@@ -41,7 +41,7 @@ pub async fn route_article(
     match result {
         Ok(v) => {
             let articles = v.iter().map(|row| Article {
-                id: row.get(0),
+                id: row.get::<Uuid, usize>(0).to_string(),
                 title: row.get(1),
                 description: row.get(2),
                 modify_time: row.get::<i64, usize>(4) as u64,
@@ -123,11 +123,11 @@ pub async fn set_article(
     user_msg: UserMsg,
     my_config: &State<MyConfig>,
 ) -> Result<RtData<SetArticleDataState>, Status> {
-    let slice_len = my_config.slice_len;
 
     let article = set_article_data.into_inner();
 
     let title = article.title;
+    let description = article.description;
     let save_content = format!("# {title}\n") + article.content.as_str();
     let content_buf: &[u8] = save_content.as_ref();
     let user_id = user_msg.id;
@@ -155,13 +155,8 @@ pub async fn set_article(
 
     write_into_md(&user_id, &article_id, content_buf).await?;
 
-    let content_len = article.content.len();
-    let dst = if content_len < (slice_len as usize) {
-        article.content.as_str()
-    } else {
-        article.content.get(0..=(slice_len as usize)).unwrap()
-    };
-    match save_article(db, is_add, user_id, article_id, title, dst, is_publish).await {
+
+    match save_article(db, is_add, user_id, article_id, title, &description, is_publish).await {
         Ok(modifiy_time) => {
             return Ok(RtData {
                 success: true,
@@ -235,11 +230,11 @@ pub async fn get_article_detail(
 ) -> Result<RtData<ArticleDetailData>, Status> {
     match article_detail(db, id).await {
         Ok(row) => {
-            let author_id: String = row.get(3);
+            let author_id: String = row.get::<Uuid, usize>(3).to_string();
             let content = read_md_into_str(&user_msg.id, &id).await?;
 
             let article_detail = ArticleDetail {
-                id: row.get(0),
+                id: row.get::<Uuid, usize>(0).to_string(),
                 title: row.get(1),
                 content,
                 modify_time: row.get::<i64, usize>(2) as u64,
@@ -268,7 +263,7 @@ pub async fn get_article_detail(
 }
 
 #[get("/search?<condition>")]
-pub async fn saerch_article(
+pub async fn search_article(
     db: BlogDBC,
     condition: &str,
 ) -> Result<RtData<GetArticleData>, Status> {
@@ -278,7 +273,7 @@ pub async fn saerch_article(
             rt: Rt::Success,
             data: GetArticleData::Success(ArticleData {
                 list: rows.iter().map(|row| Article {
-                    id: row.get(0),
+                    id: row.get::<Uuid, usize>(0).to_string(),
                     title: row.get(1),
                     modify_time: row.get::<i64, usize>(2) as u64,
                     description: row.get(3),
@@ -289,6 +284,7 @@ pub async fn saerch_article(
             msg: String::from("search success"),
         }),
         Err(err) => {
+            dbg!(&err);
             if is_row_not_found(err) {
                 Ok(RtData {
                     success: false,

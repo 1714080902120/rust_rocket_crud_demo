@@ -9,7 +9,7 @@ mod db;
 mod state;
 mod types;
 
-use article::route::{index, route_article, get_user_article, set_article, del_article};
+use article::route::{index, route_article, get_user_article, set_article, del_article, search_article, get_article_detail};
 use auth::route::{login, register};
 use catcher::{bad_request_catcher, error_catcher, not_found_catcher};
 use config::{get_custom_figment, init_my_config};
@@ -27,6 +27,6 @@ fn rocket() -> _ {
             "/",
             catchers![error_catcher, not_found_catcher, bad_request_catcher],
         )
-        .mount("/", routes![index, route_article])
+        .mount("/", routes![index, route_article, search_article, get_article_detail])
         .mount("/user", routes![login, register, get_user_article, set_article, del_article])
 }

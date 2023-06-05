@@ -115,6 +115,8 @@ pub struct SetArticleData {
     id: String,
     #[field(name = "title")]
     title: String,
+    #[field(name = "description")]
+    description: String,
     #[field(name = "content")]
     content: String,
     #[field(name = "is_publish")]
