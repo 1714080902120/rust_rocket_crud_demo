@@ -17,7 +17,7 @@ pub async fn get_article(
     if !all {
         sql += match id.is_empty() {
             false => {
-                format!(" AND id = '{id}'")
+                format!(" AND a.id = '{id}'")
             }
             _ => String::from(""),
         }
