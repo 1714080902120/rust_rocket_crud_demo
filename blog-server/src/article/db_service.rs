@@ -16,8 +16,8 @@ pub async fn get_article(
     let offset = page_no * limit;
     if !all {
         sql += match id.is_empty() {
-            true => {
-                format!(" AND id = {id}")
+            false => {
+                format!(" AND id = '{id}'")
             }
             _ => String::from(""),
         }
